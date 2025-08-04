@@ -1,0 +1,35 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    profiles: ["dev"]
+    volumes:
+      - ./build.sh:/root/build.sh
+      - ./PI:/root/PI
+      - ./behavioral-model:/root/behavioral-model
+      - ./p4c:/root/p4c
+    entrypoint: ["tail", "-f", "/dev/null"]
+  
+  containerlab:
+    build:
+      context: .
+      dockerfile: Dockerfile.containerlab
+    privileged: true
+    network_mode: host
+    pid: host
+    volumes:
+      # Required for containerlab to access Docker daemon on the host.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the Docker daemon's data directory.
+      # - /var/lib/docker:/var/lib/docker
+      # Mount host kernel modules (optional but recommended).
+      - /lib/modules:/lib/modules
+      - ./topo-clab.yml:/root/containerlab/topo-clab.yml
+    entrypoint: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - clab-node
+  clab-node:
+    build:
+      context: .
+      dockerfile: Dockerfile.node

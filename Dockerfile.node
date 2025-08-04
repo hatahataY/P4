@@ -1,0 +1,27 @@
+FROM debian:bookworm-slim
+
+COPY ./entrypoint_node.sh /tmp/entrypoint.sh
+RUN cat /tmp/entrypoint.sh >> /root/.bashrc && \
+    rm /tmp/entrypoint.sh
+
+COPY ./behavioral-model/PI/.libs /usr/local/lib
+COPY ./behavioral-model/services/.libs /usr/local/lib
+COPY ./behavioral-model/thrift_src/.libs /usr/local/lib
+COPY ./behavioral-model/targets/simple_switch/.libs /usr/local/lib
+COPY ./PI/proto/frontend/.libs /usr/local/lib
+COPY ./PI/proto/server/.libs /usr/local/lib
+COPY ./PI/src/.libs /usr/local/lib
+COPY ./PI/frontends_extra/cpp/.libs /usr/local/lib
+COPY ./PI/proto/p4info/.libs /usr/local/lib
+COPY ./PI/proto/.libs /usr/local/lib
+COPY ./behavioral-model/targets/simple_switch_grpc/.libs /usr/local/bin/.libs
+COPY ./behavioral-model/targets/simple_switch_grpc/simple_switch_grpc /usr/local/bin/simple_switch_grpc
+
+WORKDIR /root
+
+RUN apt-get update && \
+    apt-get install -y \
+        iproute2 iputils-ping inetutils-traceroute \
+        procps libgrpc++-dev libthrift-dev libboost-program-options-dev \
+        libboost-filesystem-dev libpcap-dev libnanomsg-dev \
+        libboost-thread-dev

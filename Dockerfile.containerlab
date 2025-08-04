@@ -1,0 +1,19 @@
+FROM golang:1.24.5-alpine AS builder
+
+COPY ./containerlab /root/containerlab
+WORKDIR /root/containerlab
+
+RUN go install .
+
+
+FROM debian:bookworm-slim
+
+COPY --from=builder /go/bin/containerlab /usr/bin/containerlab
+WORKDIR /root/containerlab
+
+COPY ./entrypoint.sh /tmp/entrypoint.sh
+RUN cat /tmp/entrypoint.sh >> /root/.bashrc && \
+    rm /tmp/entrypoint.sh
+
+# RUN \printf '\n# containerlab completion\nif command -v containerlab &> /dev/null; then\n  source <(containerlab completion bash)\nfi\n' >> /root/.bashrc
+ENTRYPOINT [ "/bin/bash" ]
