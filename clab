@@ -4,21 +4,21 @@ ROOT_DIR="/root/containerlab"
 
 function build_image() {
     # 1. Build PI
-    if [ ! -f "$ROOT_DIR/build/PI/configure" ]; then
+    if [ ! -f "$ROOT_DIR/build/PI/config.h" ]; then
         cd $ROOT_DIR/PI && ./autogen.sh
     fi
     mkdir -p $ROOT_DIR/build/PI && cd $ROOT_DIR/build/PI
-    if [ ! -f "$ROOT_DIR/build/PI/configure" ]; then
+    if [ ! -f "$ROOT_DIR/build/PI/config.h" ]; then
         $ROOT_DIR/PI/configure --with-proto
     fi
     make -j$(nproc)
 
     # 2. Build bmv2
-    if [ ! -f "$ROOT_DIR/build/behavioral-model/configure" ]; then
+    if [ ! -f "$ROOT_DIR/build/behavioral-model/config.h" ]; then
         cd $ROOT_DIR/behavioral-model && ./autogen.sh
     fi
     mkdir -p $ROOT_DIR/build/behavioral-model && cd $ROOT_DIR/build/behavioral-model
-    if [ ! -f "$ROOT_DIR/build/behavioral-model/configure" ]; then
+    if [ ! -f "$ROOT_DIR/build/behavioral-model/config.h" ]; then
         $ROOT_DIR/behavioral-model/configure \
             LDFLAGS="-L$ROOT_DIR/build/PI/proto/frontend/.libs \
                      -L$ROOT_DIR/build/PI/proto/server/.libs \
@@ -36,7 +36,7 @@ function build_image() {
     if [ ! -f "$ROOT_DIR/build/p4c/config.h" ]; then
         cmake $ROOT_DIR/p4c
     fi
-    make -j$(nproc)
+    make -j4
 
     # 4. Build containerlab image
     docker build -t p4-clab-node -f $ROOT_DIR/Dockerfile.node $ROOT_DIR

@@ -11,6 +11,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Mount host kernel modules (optional but recommended).
       - /lib/modules:/lib/modules
+      # ==============================
+      - ./clab-topo/basic.p4:/root/containerlab/basic.p4
       - ./topo.clab.yml:/root/containerlab/topo.clab.yml
       - ./Dockerfile.node:/root/containerlab/Dockerfile.node
       - ./entrypoint_node.sh:/root/containerlab/entrypoint_node.sh

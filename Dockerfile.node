@@ -4,6 +4,13 @@ COPY ./entrypoint_node.sh /tmp/entrypoint.sh
 RUN cat /tmp/entrypoint.sh >> /root/.bashrc && \
     rm /tmp/entrypoint.sh
 
+# p4c
+# COPY ./build/p4c/p4c_src /usr/lib/python3/dist-packages/p4c_src
+# COPY ./build/p4c/p4c /usr/local/bin/p4c
+COPY ./build/p4c/p4c-bm2-ss /usr/local/bin/p4c-bm2-ss
+COPY ./clab-topo/basic.p4 /root/basic.p4
+
+# simple_switch_grpc
 COPY ./build/behavioral-model/PI/.libs /usr/local/lib
 COPY ./build/behavioral-model/services/.libs /usr/local/lib
 COPY ./build/behavioral-model/thrift_src/.libs /usr/local/lib
@@ -24,5 +31,5 @@ RUN apt-get update && \
         iproute2 iputils-ping inetutils-traceroute \
         procps libgrpc++-dev libthrift-dev libboost-program-options-dev \
         libboost-filesystem-dev libpcap-dev libnanomsg-dev \
-        libboost-thread-dev && \
+        libboost-thread-dev python3 libboost-iostreams-dev && \
     rm -rf /var/lib/apt/lists/*
