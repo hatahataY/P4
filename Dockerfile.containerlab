@@ -6,7 +6,12 @@ WORKDIR /root/containerlab
 RUN go install .
 
 
-FROM debian:bookworm-slim
+FROM docker:28.3.3-alpine3.22
+
+RUN apk add --no-cache \
+    bash bash-completion automake autoconf libtool build-base \
+    pkgconf protobuf-dev grpc-dev boost-dev thrift thrift-dev \
+    nanomsg-dev gmp-dev libpcap-dev cmake python3 flex bison git
 
 COPY --from=builder /go/bin/containerlab /usr/bin/containerlab
 WORKDIR /root/containerlab
@@ -14,7 +19,12 @@ WORKDIR /root/containerlab
 COPY ./clab /usr/local/bin/clab
 COPY ./clab-completion.bash /tmp/clab-completion.bash
 COPY ./entrypoint.sh /tmp/entrypoint.sh
+
 RUN echo 'if [ -f /etc/bash_completion ] && ! shopt -oq posix; then . /etc/bash_completion; fi' >> /root/.bashrc && \
+    echo >> /root/.bashrc && \
+    echo '. <(docker completion bash)' >> /root/.bashrc && \
+    echo >> /root/.bashrc && \
+    echo '. <(containerlab completion bash)' >> /root/.bashrc && \
     echo >> /root/.bashrc && \
     chmod +x /usr/local/bin/clab && \
     cat /tmp/clab-completion.bash >> /root/.bashrc && \
@@ -23,33 +33,4 @@ RUN echo 'if [ -f /etc/bash_completion ] && ! shopt -oq posix; then . /etc/bash_
     echo >> /root/.bashrc && \
     rm /tmp/*
 
-ENV DOCKER_DEPS="\
-    curl gpg lsb-release bash-completion"
-ENV PI_DEV_DEPS="\
-    autoconf libtool build-essential pkg-config \
-    protobuf-compiler-grpc libgrpc++-dev libboost-thread-dev"
-ENV BMV2_DEV_DEPS="\
-    autoconf libtool g++ thrift-compiler \
-    libthrift-dev libnanomsg-dev libgmp-dev \
-    libpcap-dev protobuf-compiler-grpc libboost-thread-dev \
-    make libboost-program-options-dev libboost-filesystem-dev \
-    libgrpc++-dev"
-ENV P4C_DEV_DEPS="\
-    cmake python3 flex bison git libboost-iostreams-dev"
-RUN apt-get update && \
-    apt-get install -y $DOCKER_DEPS $PI_DEV_DEPS $BMV2_DEV_DEPS $P4C_DEV_DEPS && \
-    rm -rf /var/lib/apt/lists/* && \
-    mkdir -p ./build && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    chmod a+r /etc/apt/keyrings/docker.gpg && \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y docker-ce-cli && \
-    echo '. <(docker completion bash)' >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    echo '. <(containerlab completion bash)' >> /root/.bashrc
-
-# RUN \printf '\n# containerlab completion\nif command -v containerlab &> /dev/null; then\n  source <(containerlab completion bash)\nfi\n' >> /root/.bashrc
 ENTRYPOINT [ "/bin/bash" ]

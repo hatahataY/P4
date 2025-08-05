@@ -1,14 +1,16 @@
-FROM debian:bookworm-slim
+FROM alpine:3.22
+
+RUN apk add --no-cache \
+    bash bash-completion iproute2 iputils traceroute procps \
+    grpc-dev thrift-dev boost-dev libpcap-dev nanomsg-dev python3
 
 COPY ./entrypoint_node.sh /tmp/entrypoint.sh
-RUN cat /tmp/entrypoint.sh >> /root/.bashrc && \
-    rm /tmp/entrypoint.sh
+RUN cat /tmp/entrypoint.sh >> /root/.bashrc && rm /tmp/entrypoint.sh
 
 # p4c
 # COPY ./build/p4c/p4c_src /usr/lib/python3/dist-packages/p4c_src
 # COPY ./build/p4c/p4c /usr/local/bin/p4c
 COPY ./build/p4c/p4c-bm2-ss /usr/local/bin/p4c-bm2-ss
-COPY ./clab-topo/basic.p4 /root/basic.p4
 
 # simple_switch_grpc
 COPY ./build/behavioral-model/PI/.libs /usr/local/lib
@@ -24,12 +26,7 @@ COPY ./build/PI/proto/.libs /usr/local/lib
 COPY ./build/behavioral-model/targets/simple_switch_grpc/.libs /usr/local/bin/.libs
 COPY ./build/behavioral-model/targets/simple_switch_grpc/simple_switch_grpc /usr/local/bin/simple_switch_grpc
 
-WORKDIR /root
+#p4
+COPY ./clab-topo/basic.p4 /root/basic.p4
 
-RUN apt-get update && \
-    apt-get install -y \
-        iproute2 iputils-ping inetutils-traceroute \
-        procps libgrpc++-dev libthrift-dev libboost-program-options-dev \
-        libboost-filesystem-dev libpcap-dev libnanomsg-dev \
-        libboost-thread-dev python3 libboost-iostreams-dev && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /root
