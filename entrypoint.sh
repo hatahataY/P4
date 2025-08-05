@@ -7,17 +7,13 @@ case $TERM in
         ;;
 esac
 
-
-alias clab-start='\
-containerlab deploy -t /root/containerlab/topo-clab.yml && \
-containerlab destroy -t /root/containerlab/topo-clab.yml'
-
 echo "====================================================="
-echo "  Welcome to Containerlab !"
-echo "  To start an experiment, run the following command:"
-echo ""
-echo "  $ clab-start"
-echo ""
-echo "  To end the experiment and remove containers,"
-echo "  press 'Ctrl+C'. "
+echo "  Welcome to Containerlab!"
+echo "  'clab' is a wrapper to simplify your workflow."
+echo "  -------------------------------------------------"
+echo "  Available Commands:"
+echo "  - clab start <topology_file> : Deploys the specified lab topology."
+echo "  - clab stop <topology_file>  : Destroys the specified lab topology."
+echo "  - clab build                 : Builds the containerlab image."
+echo "  - clab clean                 : Removes the containerlab image."
 echo "====================================================="

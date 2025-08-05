@@ -1,0 +1,96 @@
+#!/bin/bash
+
+ROOT_DIR="/root/containerlab"
+
+function build_image() {
+    # 1. Build PI
+    if [ ! -f "$ROOT_DIR/build/PI/configure" ]; then
+        cd $ROOT_DIR/PI && ./autogen.sh
+    fi
+    mkdir -p $ROOT_DIR/build/PI && cd $ROOT_DIR/build/PI
+    if [ ! -f "$ROOT_DIR/build/PI/configure" ]; then
+        $ROOT_DIR/PI/configure --with-proto
+    fi
+    make -j$(nproc)
+
+    # 2. Build bmv2
+    if [ ! -f "$ROOT_DIR/build/behavioral-model/configure" ]; then
+        cd $ROOT_DIR/behavioral-model && ./autogen.sh
+    fi
+    mkdir -p $ROOT_DIR/build/behavioral-model && cd $ROOT_DIR/build/behavioral-model
+    if [ ! -f "$ROOT_DIR/build/behavioral-model/configure" ]; then
+        $ROOT_DIR/behavioral-model/configure \
+            LDFLAGS="-L$ROOT_DIR/build/PI/proto/frontend/.libs \
+                     -L$ROOT_DIR/build/PI/proto/server/.libs \
+                     -L$ROOT_DIR/build/PI/src/.libs $LDFLAGS" \
+            CPPFLAGS="$CPPFLAGS -I$ROOT_DIR/PI/include \
+                     -I$ROOT_DIR/PI/proto/frontend \
+                     -I$ROOT_DIR/PI/proto/server \
+                    -I$ROOT_DIR/behavioral-model/include" \
+            --with-thrift --with-pi
+    fi
+    make -j$(nproc)
+
+    # 3. Build p4c
+    mkdir -p $ROOT_DIR/build/p4c && cd $ROOT_DIR/build/p4c
+    if [ ! -f "$ROOT_DIR/build/p4c/config.h" ]; then
+        cmake $ROOT_DIR/p4c
+    fi
+    make -j$(nproc)
+
+    # 4. Build containerlab image
+    docker build -t p4-clab-node -f $ROOT_DIR/Dockerfile.node $ROOT_DIR
+
+    if [ $? -eq 0 ]; then
+        echo "Successfully built p4-clab-node image."
+    else
+        echo "Failed to build p4-clab-node image."
+        exit 1
+    fi
+}
+
+
+SUBCOMMAND=$1
+
+case "$SUBCOMMAND" in
+    start)
+        echo "Checking for p4-clab-node Docker image..."
+        if [[ "$(docker images -q p4-clab-node 2> /dev/null)" == "" ]]; then
+            build_image
+        else
+            echo "p4-clab-node image already exists. Skipping build."
+        fi
+
+        echo "Deploying containerlab topology..."
+        LAST_DEPLOYED_TOPO=$2
+        shift
+        containerlab deploy "$@" --skip-post-deploy
+        ;;
+    stop)
+        echo "Destroying containerlab topology..."
+        LAST_DEPLOYED_TOPO=$2
+        shift
+        containerlab destroy "$@"
+        ;;
+    build)
+        echo "Checking for p4-clab-node Docker image..."
+        if [[ "$(docker images -q p4-clab-node 2> /dev/null)" == "" ]]; then
+            build_image
+        else
+            echo "p4-clab-node image already exists. Skipping build."
+        fi
+        ;;
+    clean)
+        echo "Removing p4-clab-node Docker image..."
+        if docker rmi p4-clab-node 2> /dev/null; then
+            echo "Successfully removed p4-clab-node image."
+        else
+            echo "p4-clab-node image not found or in use. Could not remove."
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Usage: clab [start|build|cleanup] [OPTIONS]"
+        exit 1
+        ;;
+esac
