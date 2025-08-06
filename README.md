@@ -10,7 +10,7 @@ git clone --recursive https://github.com/hatahataY/P4.git
 ```
 After cloning, please apply the necessary patch. This step is crucial due to the use of an Alpine-based image.
 ```bash
-patch < diff
+patch -p1 < diff
 ```
 
 
