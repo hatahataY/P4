@@ -4,14 +4,12 @@ topology:
     r1:
       kind: linux
       image: p4-clab-node
-      
       exec:
         - ip addr add 10.0.0.0/31 dev eth1
         - ip link set eth1 up
         - ip route add 10.0.0.0/24 via 10.0.0.1
         - sysctl net.ipv4.ip_forward=1
         # - simple_switch_grpc -i eth1 --pcap /tmp
-
     r2:
       kind: linux
       image: p4-clab-node
@@ -21,7 +19,6 @@ topology:
         - ip addr add 10.0.0.2/31 dev eth2
         - ip link set eth2 up
         - sysctl net.ipv4.ip_forward=1
-
     r3:
       kind: linux
       image: p4-clab-node
@@ -30,7 +27,6 @@ topology:
         - ip link set eth1 up
         - ip route add 10.0.0.0/24 via 10.0.0.2
         - sysctl net.ipv4.ip_forward=1
-
   links:
     - endpoints: ["r1:eth1", "r2:eth1"]
     - endpoints: ["r2:eth2", "r3:eth1"]

@@ -1,12 +1,12 @@
 [submodule "PI"]
-	path = PI
+	path = repos/PI
 	url = https://github.com/p4lang/PI.git
 [submodule "behavioral-model"]
-	path = behavioral-model
+	path = repos/behavioral-model
 	url = https://github.com/p4lang/behavioral-model.git
 [submodule "containerlab"]
 	path = containerlab
 	url = https://github.com/srl-labs/containerlab.git
 [submodule "p4c"]
-	path = p4c
+	path = repos/p4c
 	url = https://github.com/p4lang/p4c.git

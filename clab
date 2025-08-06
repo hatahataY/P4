@@ -1,96 +1,199 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-ROOT_DIR="/root/containerlab"
+import argparse
+import subprocess
+import os
+import sys
+import argcomplete
+import importlib.util
 
-function build_image() {
-    # 1. Build PI
-    if [ ! -f "$ROOT_DIR/build/PI/config.h" ]; then
-        cd $ROOT_DIR/PI && ./autogen.sh
-    fi
-    mkdir -p $ROOT_DIR/build/PI && cd $ROOT_DIR/build/PI
-    if [ ! -f "$ROOT_DIR/build/PI/config.h" ]; then
-        $ROOT_DIR/PI/configure --with-proto
-    fi
-    make -j$(nproc)
+ROOT_DIR = os.path.expanduser("~")
 
-    # 2. Build bmv2
-    if [ ! -f "$ROOT_DIR/build/behavioral-model/config.h" ]; then
-        cd $ROOT_DIR/behavioral-model && ./autogen.sh
-    fi
-    mkdir -p $ROOT_DIR/build/behavioral-model && cd $ROOT_DIR/build/behavioral-model
-    if [ ! -f "$ROOT_DIR/build/behavioral-model/config.h" ]; then
-        $ROOT_DIR/behavioral-model/configure \
-            LDFLAGS="-L$ROOT_DIR/build/PI/proto/frontend/.libs \
-                     -L$ROOT_DIR/build/PI/proto/server/.libs \
-                     -L$ROOT_DIR/build/PI/src/.libs $LDFLAGS" \
-            CPPFLAGS="$CPPFLAGS -I$ROOT_DIR/PI/include \
-                     -I$ROOT_DIR/PI/proto/frontend \
-                     -I$ROOT_DIR/PI/proto/server \
-                    -I$ROOT_DIR/behavioral-model/include" \
-            --with-thrift --with-pi
-    fi
-    make -j$(nproc)
+# --- Helper Functions for Build Process ---
+def _build_docker_image(image_name: str, context_path: str, dockerfile_path: str) -> bool:
+    print(f"  Building Docker image: {image_name}...")
+    config_path = os.path.expanduser("~/.docker/config.json")
+    if os.path.exists(config_path):
+        try:
+            print("  Removing ~/.docker/config.json to prevent authentication errors...")
+            subprocess.run(["rm", "-f", config_path], check=True)
+            print("  Successfully removed config.json.")
+        except Exception as e:
+            print(f"  Warning: Could not remove config.json: {e}", file=sys.stderr)
+    try:
+        subprocess.run(["docker", "build", "-t", image_name, "-f", dockerfile_path, context_path], check=True)
+        print(f"Successfully built {image_name} image.")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to build {image_name} image: {e}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred during Docker image build: {e}", file=sys.stderr)
+        return False
 
-    # 3. Build p4c
-    mkdir -p $ROOT_DIR/build/p4c && cd $ROOT_DIR/build/p4c
-    if [ ! -f "$ROOT_DIR/build/p4c/config.h" ]; then
-        cmake $ROOT_DIR/p4c
-    fi
-    make -j4
+def get_environment_type(root_dir: str) -> str:
+    env_config_path = os.path.join(root_dir, ".clab_env")
+    if os.path.exists(env_config_path):
+        with open(env_config_path, 'r') as f:
+            env_type = f.readline().strip()
+            if env_type:
+                print(f"Inferred environment type from {env_config_path}: '{env_type}'")
+                return env_type
+    
+    print(f"Warning: .clab_env not found or empty in {root_dir}. Defaulting to 'p4'. "
+          "Consider creating a .clab_env file in your repository root with your environment type (e.g., 'p4' or 'custom').", file=sys.stderr)
+    return "p4"
 
-    # 4. Build containerlab image
-    docker build -t p4-clab-node -f $ROOT_DIR/Dockerfile.node $ROOT_DIR
+def execute_environment_build_steps(env_type: str, root_dir: str) -> tuple[bool, str, str]:
+    print(f"Executing build steps for environment type: {env_type}...")
+    try:
+        script_dir = root_dir
+        build_configs_path = os.path.join(script_dir, "build_configs.py")
 
-    if [ $? -eq 0 ]; then
-        echo "Successfully built p4-clab-node image."
-    else
-        echo "Failed to build p4-clab-node image."
-        exit 1
-    fi
-}
+        spec = importlib.util.spec_from_file_location("build_configs", build_configs_path)
+        if spec is None:
+            print(f"Error: build_configs.py not found at {build_configs_path}.", file=sys.stderr)
+            return False, "", ""
+        build_configs = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(build_configs)
+
+        build_function_name = f"build_{env_type}_components"
+        if hasattr(build_configs, build_function_name):
+            build_func = getattr(build_configs, build_function_name)
+            success, dockerfile_path, context_path = build_func(f"{root_dir}/repos")
+            if not success:
+                print(f"Error: Component build for '{env_type}' failed.", file=sys.stderr)
+                return False, "", ""
+            return True, dockerfile_path, context_path
+        else:
+            print(f"Error: Build function '{build_function_name}' not found in build_configs.py. "
+                  f"Please define 'def {build_function_name}(root_dir):' in build_configs.py.", file=sys.stderr)
+            return False, "", ""
+    except FileNotFoundError:
+        print(f"Error: build_configs.py not found at {build_configs_path}. Please create it.", file=sys.stderr)
+        return False, "", ""
+    except Exception as e:
+        print(f"An unexpected error occurred during environment build steps: {e}", file=sys.stderr)
+        return False, "", ""
+
+def _check_and_build_image_if_needed(root_dir: str) -> None:
+    env_type = get_environment_type(root_dir)
+    image_name = f"{env_type}-clab-node"
+    print(f"Checking for Docker image: {image_name}...")
+    result = subprocess.run(["docker", "images", "-q", image_name], capture_output=True, text=True)
+    if not result.stdout.strip():
+        print(f"{image_name} not found. Building now...")
+        success, dockerfile_path, context_path = execute_environment_build_steps(env_type, root_dir)
+        if not success:
+            sys.exit(1)
+        
+        if not _build_docker_image(image_name, context_path, dockerfile_path):
+            sys.exit(1)
+    else:
+        print(f"{image_name} image already exists. Skipping build.")
 
 
-SUBCOMMAND=$1
+def main():
+    parser = argparse.ArgumentParser(
+        description="Manage containerlab topologies and various environment-specific Docker images.",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
 
-case "$SUBCOMMAND" in
-    start)
-        echo "Checking for p4-clab-node Docker image..."
-        if [[ "$(docker images -q p4-clab-node 2> /dev/null)" == "" ]]; then
-            build_image
-        else
-            echo "p4-clab-node image already exists. Skipping build."
-        fi
+    subparsers = parser.add_subparsers(dest="subcommand", help="Available subcommands")
 
-        echo "Deploying containerlab topology..."
-        LAST_DEPLOYED_TOPO=$2
-        shift
-        containerlab deploy "$@" --skip-post-deploy
-        ;;
-    stop)
-        echo "Destroying containerlab topology..."
-        LAST_DEPLOYED_TOPO=$2
-        shift
-        containerlab destroy "$@"
-        ;;
-    build)
-        echo "Checking for p4-clab-node Docker image..."
-        if [[ "$(docker images -q p4-clab-node 2> /dev/null)" == "" ]]; then
-            build_image
-        else
-            echo "p4-clab-node image already exists. Skipping build."
-        fi
-        ;;
-    clean)
-        echo "Removing p4-clab-node Docker image..."
-        if docker rmi p4-clab-node 2> /dev/null; then
-            echo "Successfully removed p4-clab-node image."
-        else
-            echo "p4-clab-node image not found or in use. Could not remove."
-            exit 1
-        fi
-        ;;
-    *)
-        echo "Usage: clab [start|build|cleanup] [OPTIONS]"
-        exit 1
-        ;;
-esac
+    start_parser = subparsers.add_parser(
+        "start",
+        help="Deploy containerlab topology. Builds image if not present.",
+        epilog="Example: clab start my_topology.yml --network host"
+    )
+    start_parser.add_argument(
+        "topology_file",
+        help="Path to the containerlab topology file (e.g., my_topology.yml)"
+    ).completer = argcomplete.FilesCompleter(allowednames=['.yml', '.yaml'])
+
+    start_parser.add_argument(
+        "clab_args",
+        nargs=argparse.REMAINDER,
+        help="Additional arguments to pass to 'containerlab deploy'"
+    )
+
+    stop_parser = subparsers.add_parser(
+        "stop",
+        help="Destroy containerlab topology.",
+        epilog="Example: clab stop my_topology.yml"
+    )
+    stop_parser.add_argument(
+        "topology_file",
+        help="Path to the containerlab topology file (e.g., my_topology.yml)"
+    ).completer = argcomplete.FilesCompleter(allowednames=['.yml', '.yaml'])
+
+    stop_parser.add_argument(
+        "clab_args",
+        nargs=argparse.REMAINDER,
+        help="Additional arguments to pass to 'containerlab destroy'"
+    )
+
+    image_parser = subparsers.add_parser(
+        "image",
+        help="Manage containerlab Docker images."
+    )
+    image_subparsers = image_parser.add_subparsers(
+        dest="image_subcommand",
+        help="Image management subcommands"
+    )
+
+    image_build_parser = image_subparsers.add_parser(
+        "build",
+        help="Build the containerlab image for the current environment."
+    )
+
+    image_rm_parser = image_subparsers.add_parser(
+        "rm",
+        help="Remove the containerlab image for the current environment."
+    )
+
+    argcomplete.autocomplete(parser)
+
+    args = parser.parse_args()
+
+    current_env_type = get_environment_type(ROOT_DIR)
+
+    if args.subcommand == "start":
+        _check_and_build_image_if_needed(ROOT_DIR)
+        print("Deploying containerlab topology...")
+        clab_cmd = ["containerlab", "deploy", args.topology_file, "--skip-post-deploy"] + args.clab_args
+        try:
+            subprocess.run(clab_cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error deploying topology: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.subcommand == "stop":
+        print("Destroying containerlab topology...")
+        clab_cmd = ["containerlab", "destroy", args.topology_file] + args.clab_args
+        try:
+            subprocess.run(clab_cmd, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error destroying topology: {e}", file=sys.stderr)
+            sys.exit(1)
+    elif args.subcommand == "image":
+        if args.image_subcommand == "build":
+            _check_and_build_image_if_needed(ROOT_DIR)
+        elif args.image_subcommand == "rm":
+            image_name = f"{current_env_type}-clab-node"
+            print(f"Removing Docker image: {image_name}...")
+            try:
+                subprocess.run(["docker", "rmi", image_name], check=True)
+                print(f"Successfully removed {image_name} image.")
+            except subprocess.CalledProcessError as e:
+                if "No such image" in e.stderr:
+                    print(f"{image_name} not found. Nothing to remove.")
+                else:
+                    print(f"Failed to remove {image_name} image: {e}", file=sys.stderr)
+                    sys.exit(1)
+        else:
+            image_parser.print_help()
+    else:
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()

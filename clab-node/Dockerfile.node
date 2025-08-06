@@ -1,0 +1,31 @@
+FROM alpine:3.22
+
+RUN apk add --no-cache \
+    bash bash-completion iproute2 iputils traceroute procps \
+    grpc-dev thrift-dev boost-dev libpcap-dev nanomsg-dev python3
+
+COPY ./clab-node/node.bashrc /root/.bashrc
+
+# p4c
+# COPY ./repos/build/p4c/p4c_src /usr/lib/python3/dist-packages/p4c_src
+# COPY ./repos/build/p4c/p4c /usr/local/bin/p4c
+COPY ./repos/build/p4c/p4c-bm2-ss /usr/local/bin/p4c-bm2-ss
+
+# simple_switch_grpc
+COPY ./repos/build/behavioral-model/PI/.libs /usr/local/lib
+COPY ./repos/build/behavioral-model/services/.libs /usr/local/lib
+COPY ./repos/build/behavioral-model/thrift_src/.libs /usr/local/lib
+COPY ./repos/build/behavioral-model/targets/simple_switch/.libs /usr/local/lib
+COPY ./repos/build/PI/proto/frontend/.libs /usr/local/lib
+COPY ./repos/build/PI/proto/server/.libs /usr/local/lib
+COPY ./repos/build/PI/src/.libs /usr/local/lib
+COPY ./repos/build/PI/frontends_extra/cpp/.libs /usr/local/lib
+COPY ./repos/build/PI/proto/p4info/.libs /usr/local/lib
+COPY ./repos/build/PI/proto/.libs /usr/local/lib
+COPY ./repos/build/behavioral-model/targets/simple_switch_grpc/.libs /usr/local/bin/.libs
+COPY ./repos/build/behavioral-model/targets/simple_switch_grpc/simple_switch_grpc /usr/local/bin/simple_switch_grpc
+
+#p4
+COPY ./clab-node/basic.p4 /root/basic.p4
+
+WORKDIR /root

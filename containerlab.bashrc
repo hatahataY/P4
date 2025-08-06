@@ -1,4 +1,6 @@
 alias ls='ls --color=auto'
+alias ll='ls --color=auto -l'
+alias l='ls --color=auto -lA'
 alias grep='grep --color=auto'
 
 case $TERM in
@@ -7,13 +9,14 @@ case $TERM in
         ;;
 esac
 
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion;
+fi
+eval "$(docker completion bash)"
+eval "$(containerlab completion bash)"
+eval "$(register-python-argcomplete clab)"
+
 echo "====================================================="
 echo "  Welcome to Containerlab!"
 echo "  'clab' is a wrapper to simplify your workflow."
-echo "  -------------------------------------------------"
-echo "  Available Commands:"
-echo "  - clab start <topology_file> : Deploys the specified lab topology."
-echo "  - clab stop <topology_file>  : Destroys the specified lab topology."
-echo "  - clab build                 : Builds the containerlab image."
-echo "  - clab clean                 : Removes the containerlab image."
 echo "====================================================="

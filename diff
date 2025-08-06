@@ -1,0 +1,17 @@
+--- a/repos/p4c/ir/expression.def
++++ b/repos/p4c/ir/expression.def
+@@ -288,8 +288,8 @@
+     Constant(intmax_t v, unsigned base = 10) :
+         Literal(Type_InfInt::get()), value(v), base(base) {}
+ #else
+-    Constant(long v, unsigned base = 10) :
+-        Literal(Type_InfInt::get()), value(v), base(base) {}
+-    Constant(unsigned long v, unsigned base = 10) :
+-        Literal(Type_InfInt::get()), value(v), base(base) {}
++//    Constant(long v, unsigned base = 10) :
++//        Literal(Type_InfInt::get()), value(v), base(base) {}
++//    Constant(unsigned long v, unsigned base = 10) :
++//        Literal(Type_InfInt::get()), value(v), base(base) {}
+     Constant(intmax_t v, unsigned base = 10) :
+         Literal(Type_InfInt::get()), value(v), base(base) {}
+ #endif

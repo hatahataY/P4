@@ -1,0 +1,25 @@
+digraph G {
+    // ノードの定義
+    node [shape=box];
+    h1 [label="h1\n(10.0.1.1)"];
+    h2 [label="h2\n(10.0.2.2)"];
+    h3 [label="h3\n(10.0.3.3)"];
+    h4 [label="h4\n(10.0.4.4)"];
+    
+    node [shape=cylinder];
+    s1 [label="s1"];
+    s2 [label="s2"];
+    s3 [label="s3"];
+    s4 [label="s4"];
+
+    // エッジの定義
+    h1 -> s1;
+    h2 -> s1;
+    h3 -> s2;
+    h4 -> s2;
+
+    s1 -> s3;
+    s1 -> s4;
+    s2 -> s3;
+    s2 -> s4;
+}

@@ -8,29 +8,18 @@ RUN go install .
 
 FROM docker:28.3.3-alpine3.22
 
+COPY --from=builder /go/bin/containerlab /usr/local/bin/containerlab
+COPY ./containerlab.bashrc /root/.bashrc
+COPY ./clab /usr/local/bin/clab
+COPY ./.clab_env /root/.clab_env
+COPY ./build_configs.py /root/build_configs.py
+
 RUN apk add --no-cache \
     bash bash-completion automake autoconf libtool build-base \
     pkgconf protobuf-dev grpc-dev boost-dev thrift thrift-dev \
-    nanomsg-dev gmp-dev libpcap-dev cmake python3 flex bison git
+    nanomsg-dev gmp-dev libpcap-dev cmake python3 flex flex-dev \ 
+    bison git py3-argcomplete && \
+    chmod +x /usr/local/bin/clab
 
-COPY --from=builder /go/bin/containerlab /usr/bin/containerlab
-WORKDIR /root/containerlab
-
-COPY ./clab /usr/local/bin/clab
-COPY ./clab-completion.bash /tmp/clab-completion.bash
-COPY ./entrypoint.sh /tmp/entrypoint.sh
-
-RUN echo 'if [ -f /etc/bash_completion ] && ! shopt -oq posix; then . /etc/bash_completion; fi' >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    echo '. <(docker completion bash)' >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    echo '. <(containerlab completion bash)' >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    chmod +x /usr/local/bin/clab && \
-    cat /tmp/clab-completion.bash >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    cat /tmp/entrypoint.sh >> /root/.bashrc && \
-    echo >> /root/.bashrc && \
-    rm /tmp/*
-
+WORKDIR /root
 ENTRYPOINT [ "/bin/bash" ]

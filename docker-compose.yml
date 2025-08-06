@@ -12,12 +12,10 @@ services:
       # Mount host kernel modules (optional but recommended).
       - /lib/modules:/lib/modules
       # ==============================
-      - ./clab-topo/basic.p4:/root/containerlab/basic.p4
-      - ./topo.clab.yml:/root/containerlab/topo.clab.yml
-      - ./Dockerfile.node:/root/containerlab/Dockerfile.node
-      - ./entrypoint_node.sh:/root/containerlab/entrypoint_node.sh
-      - ./build:/root/containerlab/build
-      - ./PI:/root/containerlab/PI
-      - ./behavioral-model:/root/containerlab/behavioral-model
-      - ./p4c:/root/containerlab/p4c
+      - ./topo.clab.yml:/root/topo.clab.yml
+      - ./clab-node:/root/clab-node
+      # ===============================
+      - ./repos:/root/repos
+      - ./repos/build:/root/repos/build
+      - ./repos/install:/root/repos/install
     entrypoint: ["tail", "-f", "/dev/null"]
